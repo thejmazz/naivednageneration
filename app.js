@@ -123,15 +123,3 @@ app.get('/dnas', function(req, res) {
 // ==== Listen ====
 app.listen(port);
 console.log('Express server listening on port ' + port.blue);
-
-
-// ==== Serve static content ====
-var fileServer = new static.Server('./public');
-
-require('http').createServer(function (request, response) {
-    request.addListener('end', function () {
-        fileServer.serve(request, response);
-    }).resume();
-}).listen(3000);
-
-console.log('Serving static content on porti ' + '3000'.blue);

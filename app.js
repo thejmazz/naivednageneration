@@ -21,9 +21,6 @@ var morgan = require('morgan');
 // fancy console.log colours
 var colors = require('colors');
 
-// for serving static content: i.e. the frontend
-var static = require('node-static');
-
 // ==== Command line arguments ====
 var port = process.argv[2];
 
@@ -36,6 +33,14 @@ mongoose.connect('mongodb://localhost/randomDNA');
 // ==== Middleware ====
 // "An Express app is essentially a series of middleware calls"
 // see http://expressjs.com/guide/using-middleware.html
+
+// CORS
+app.use(function(req, res, next) {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+    next();
+});
+
 
 // Let morgan log for *every* route
 app.use(morgan(
@@ -120,18 +125,27 @@ app.get('/dnas', function(req, res) {
     })
 })
 
+/*
+var auth = function(req, res, next) {
+    if (req.body.token == 'mysecretotken') {
+        next();
+    } else {
+        res.end({
+            'sucess': false
+        })
+    }
+}
+
+app.post('/changePassword', auth, function(req, res) {
+    //change password stuff
+})
+*/
+
 // ==== Listen ====
 app.listen(port);
 console.log('Express server listening on port ' + port.blue);
 
 
 // ==== Serve static content ====
-var fileServer = new static.Server('./public');
-
-require('http').createServer(function (request, response) {
-    request.addListener('end', function () {
-        fileServer.serve(request, response);
-    }).resume();
-}).listen(3000);
-
-console.log('Serving static content on porti ' + '3000'.blue);
+app.use(express.static('public'));
+console.log('Serving static content from ' + 'public'.blue);

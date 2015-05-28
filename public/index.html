@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en" ng-app="myApp">
+
+<head>
+    <meta charset="UTF-8">
+    <title></title>
+
+    <!-- bower:css -->
+    <!-- endbower -->
+</head>
+
+<body ng-controller="bodyCtrl">
+    <h1> Our First AngularJS App </h1>
+    <h2> Hello {{name}} from {{home}}!</h2>
+    <!-- ng-model="foo" is the same as doing $scope.foo; on the controller side -->
+    <input ng-model="home"></input>
+
+    <h2> Run our DNA generator </h2>
+    <input ng-model="numNts" type="number" placeholder="enter number of nucleotides you want"></input> 
+    <button ng-click="genDNA()">Generate DNA!</button>
+
+    <div ng-show="done">
+        You just generated:
+        <textarea>{{currentSeq}}</textarea>
+    </div>
+
+    <h3> Database </h3>
+    <button ng-click="getSeqs()">Retreive Database</button>
+
+    <div ng-repeat="seq in seqs">
+        <p>{{seq.len}}</p>
+        <textarea>{{seq.sequence}}</textarea>
+    </div>
+
+    <!-- bower:js -->
+    <script src="bower_components/angular/angular.js"></script>
+    <!-- endbower -->
+
+    <script src="js/ang.js"></script>
+</body>
+
+</html>

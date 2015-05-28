@@ -15,18 +15,24 @@ An example of Express, ChildProcess, Endpoints, Middleware (check out morgan log
 gets called on every endpoint), Mongoose and MongoDB. AngularJS frontend app
 coming soon.
 
+# NodeJS/Express/Mongoose Tutorial
+
+#### *coming soon*
+
+Read the source! It is commented and filled with links to external resources.
+
 # AngularJS Tutorial
-### *From The Ground Up*
+#### *From The Ground Up*
 
 First, make sure you are on the `pre-angular` branch:
 ~~~bash
-$ git clone https://thejmazz/naivednageneration.git
+$ git clone https://github.com/thejmazz/naivednageneration.git
 $ cd naivednageneration
 $ git checkout pre-angular
 ~~~
 
-Now we have a RESTful API with two endpoints, and we will build the frontend app using AngularJS.
-First, we need to make a folder for `static` content. This can be served easily from Node, and 
+Now we have a RESTful API with two endpoints (`POST /genDNA` and `GET /dnas`), and we will build the frontend app using AngularJS.
+First, we need to make a folder for static content. This can be served easily from Node, and 
 essentially allows us to make a simple html website. So:
 
 ~~~bash
@@ -108,8 +114,8 @@ Now the `<script src="...angular.js"></script>` will have been added to `index.h
 angular.module('naiveDNA', [])
 
 .controller('bodyCtrl', ['$scope', function($scope) {
-    $scope.title = 'A Naive DNA Generation Algorithm'
-    $scope.subtitle = 'But what isn't?'
+    $scope.mainTitle = 'A Naive DNA Generation Algorithm'
+    $scope.subTitle = "But what isn't?"
 }]);
 ~~~
 
@@ -125,24 +131,24 @@ Second, we have defined our first controller. A controller is what is what it so
 <body ng-controller="bodyCtrl">
 ~~~
 
-Now, what is `$scope`? I like to think of `$scope` as the object contating the variables available to the context of that controller. In this case, any `ng-model="foo"` (which we will see soon) will be available from the controller as `$scope.foo`. So let's put `$scope` to use, replace the current `<h1>` in `index.html` with the following:
+Now, what is `$scope`? I like to think of `$scope` as the object containing the variables available to the context of that controller. In this case, any `ng-model="foo"` (which we will see soon) will be available from the controller as `$scope.foo`. So let's put `$scope` to use, replace the current `<h1>` in `index.html` with the following:
 
 ~~~html
-<h1>{{title}}</h1>
-<h2>{{subtitle}}</h2>
+<h1>{{mainTitle}}</h1>
+<h2>{{subTitle}}</h2>
 ~~~
 
 Refresh the page, and you should see your new titles. Time to get a little more interesting. We have a `GET` endpoint on our api at `/dnas`. You can test this by pointing Postman or your browser to `http://localhost:9001/dnas`. (If you have not generated any sequences before, this will be empty). Let's add a button to our page that will retreive all of our seqeunces and display them on the page, below your headings add:
 
 ~~~html
-<hr> <center> <button ng-click="getSeqs()">All Sequences</button> <center>
+<hr> <center> <button ng-click="getSeqs()">All Sequences</button> </center>
 <div ng-repeat="seq in seqs">
     <p>{{seq.len}}</p>
     <textarea>{{seq.sequence}}</textarea>
 </div>
 ~~~
 
-Add add the corresponding function and object to `main.js`:
+And add the corresponding function and object to `main.js`:
 
 ~~~js
 $scope.seqs = {};
@@ -184,6 +190,8 @@ $scope.genDNA = function() {
     
     var sentEnvelope = $http.post('http://localhost:9001', envelopeContents);
     
+    // could handle this like we did with .success in getSeqs, but for
+    // the sake of variety/learning we will use the promise method then
     // see https://docs.angularjs.org/api/ng/service/$q
     // promise.then(success,error,update);
     sentEnvelope.then(function(reply) {
@@ -201,5 +209,5 @@ $scope.genDNA = function() {
 
 Questions? Errors? Please let me know! Next steps: work through some [tutorials](http://campus.codeschool.com/courses/shaping-up-with-angular-js/intro) and read the [docs](https://docs.angularjs.org/api)!
 
-Cheers,
+Cheers,<br>
 thejmazz

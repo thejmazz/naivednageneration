@@ -41,7 +41,6 @@ app.use(function(req, res, next) {
     next();
 });
 
-
 // Let morgan log for *every* route
 app.use(morgan(
     ':method '.magenta + 
@@ -125,19 +124,21 @@ app.get('/dnas', function(req, res) {
     })
 })
 
+// Explicit middleware example
 /*
 var auth = function(req, res, next) {
-    if (req.body.token == 'mysecretotken') {
+    if (req.body.token === 'mysecretoken') {
         next();
     } else {
         res.end({
-            'sucess': false
-        })
+            'success': false
+        });
     }
 }
 
 app.post('/changePassword', auth, function(req, res) {
-    //change password stuff
+    // change password stuff
+    // won't get here if auth does not call next()
 })
 */
 

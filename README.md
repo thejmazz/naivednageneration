@@ -16,8 +16,10 @@ $ node app.js 9001
 ~~~
 
 An example of Express, ChildProcess, Endpoints, Middleware (check out morgan
-logger, gets called on every endpoint), Mongoose and MongoDB. AngularJS frontend
-app coming soon.
+logger, gets called on every endpoint), Mongoose and MongoDB. AngularJS app
+controlling the interactions between the frontend and the backend. (This 
+allows for a single page application (SPA) at the expense of search engine 
+optimization (SEO) )
 
 # NodeJS/Express/Mongoose Tutorial
 
@@ -58,19 +60,250 @@ console.log('Express server listening on port ' + port);
 Open up the [Postman - REST Client](https://chrome.google.com/webstore/detail/postman-rest-client/fdmmgilgnpjigdojojpjoooidkmcomcm?hl=en)
 chrome app. You *cannot* test `POST` requests easily from your browser's
 navigation bar. Instead, Postman allows you to easily send any http request to
-a url and easily provide headers and other useful data. Point Postman to
+a url and provide headers and other useful data. Point Postman to
 `http://localhost:9001/` and choose `GET` from the dropdown. Click send. Notice
 that the response is `got a GET request`. Similarily, select `POST` and send.
-Notice how on *the same url*, you have received a different response: `got a 
+Notice how on *the same url*, you have received a different response: `got a
 POST request`. This is due to the use of http verbs - `GET, POST, PUT, DELETE,
 PATCH,...` there are a [bunch] of different methods. `GET` (asking the 'embassy'
-for your record), `POST` (sending the embassy personal info and they send back
-a personalized passport), `PUT` (informing the embassy of a mistake in the
-passport and they fix it, may send back confirmation of fix), `DELETE` (this
-is what you do when you escape to a faraway island and remove your personal
+for your record), `POST` (sending the embassy personal info and they send back a
+personalized passport), `PUT` (informing the embassy of a mistake in the
+passport and they fix it, may send back confirmation of fix), `DELETE` (this is
+what you do when you escape to a faraway island and remove your personal
 information from inside the embassy's database).
 
-# AngularJS Tutorial
+Okay, so that's working, but wouldn't it be nice if the Node server logged some
+info every time a request was sent? Just for our development purposes, to see
+which routes are getting called, etc. This is an example of *[middleware](expressjs.com/guide/using-middleware.html)*.
+"An Express application is essentially a series of middleware calls". We can use
+middleware to `console.log('got a request')` on every route - just so we are
+aware of what our server is doing! Insert the following into your code:
+
+~~~js
+app.use(function(req, res, next) {
+    console.log('got a request!');
+    next();
+});
+~~~ 
+
+Now send a bunch of get or post requests from Postman and you will see the 
+console light up with messages. Notice how it happens on both of our routes - 
+we did not specify a route in our `app.use(route, middleware)` call, so it will
+apply the middleware to *all* routes. The `next` parameter and `next()` call are
+required so that the next function in the middleware stack will be called,
+otherwise our application will hang at the log.There are two alternative ways to
+specify specific middleware for specific routes, but first let's rename our two
+root routes to something more specific:
+
+~~~js
+app.get('/getDNAs', function(req, res) {
+    res.send('here is some DNA: ATGGGGGGGGGGTAG');
+});
+
+app.post('/genDNA', function(req, res) {
+    res.send('gonna generate some DNA now..');
+});
+~~~
+
+If we wanted to log our GET and POST routes with middleware, we could do it like
+this:
+
+~~~js
+app.use('/getDNAs', function(req, res, next) {
+    console.log('got a GET to /getDNAs');
+    next();
+});
+
+app.use('/genDNA', function(req, res, next) {
+    console.log('got a POST to /genDNA');
+});
+~~~
+
+or we can define middleware functions that need to explicitly called:
+
+~~~js
+var getDNALog = function(req, res, next) {
+    console.log('got a GET to /getDNAs');
+    next();
+});
+
+var postDNALog = function(req, res, next) {
+    console.log('got a POST to /genDNA');
+});
+
+app.get('/getDNAs', getDNALog, function(req, res) {
+    // route stuff
+});
+
+app.post('/genDNA', postDNALog, function(req, res) {
+    // route stuff
+});
+~~~
+
+Now, that was just to introduce you to the topic of middleware. I highly 
+recommend reading through the Express guides for [routing](http://expressjs.com/guide/routing.html)
+and [middleware](http://expressjs.com/guide/using-middleware.html). In reality,
+no one writes their own custom log messages. There is already an [npm](https://www.npmjs.org/package/grunt-bowercopy)
+package for that. We will use [morgan](https://www.npmjs.com/package/morgan).
+Morgan is easy to use, and like all other well-developed community middleware,
+modules, etc, a quick read through the readme on the repo should be enough
+to get you up to speed with the basics. Essentially you are importing a module,
+and then finding out which functions from it to call. All the annoying, tedious
+stuff has been done for and tested. For example, morgan is currently on version
+1.5.3 and has 135 commits from 7 contributors. Any ways, to use morgan you just
+need to require it and then apply it as middleware:
+
+~~~js
+var morgan = require('morgan');
+
+app.use(morgan('tiny'));
+~~~
+
+`tiny` is one of the predefined formats..something I just now figured out by
+browsing the readme file. I would like to stress here the importance of simply
+reading documentation and readmii (plural of readme) before asking someone your
+question - most often you will be able to find the answer, and learn a bunch in
+the process. If you also import [`colors`](https://www.npmjs.com/package/colors)
+you can stylize our console output a bit more, and in this way I've made my own
+morgan logger style:
+
+~~~js
+var morgan = require('morgan');
+var colors = require('colors');
+
+app.use(morgan(
+    ':method '.magenta + 
+    ':url '.green + 
+    ':status '.blue +
+    ':res[content-length] '.italic.grey + 'bits '.italic.grey 
+    + 'sent in ' + ':response-time ms'.grey
+));
+~~~
+
+Now lets move on to developing our routes, so far we have one `GET` endpoint and
+one `POST` endpoint. We will be using `POST /genDNA` to allow the client to send
+over a single numerical argument `n` which will be used as the command-line
+argument for a Python child process that generates a random DNA sequence that
+is `n` nucleotides long. The python3 script is:
+
+~~~python
+import sys
+import random
+
+nts = int(sys.argv[1])
+seq = ""
+
+# A *very* naive random DNA generation algorithm
+# But can you do better?
+for nt in range(nts):
+    r = random.random()
+    if (r > 0.75):
+        seq += "A"
+    elif (r > 0.5):
+        seq += "T"
+    elif (r > 0.25):
+        seq += "C"
+    else:
+        seq += "G"
+
+print(seq, end="")
+~~~
+
+You can store the script in `genDNA.py` and test it from your terminal like so:
+
+~~~bash
+$ python3 genDNA.py 512
+~~~
+
+which will print out a random arrangement of 512 nucleotides.
+
+Let's look at how we can get `n` from the client. We will be using a `POST`
+request since we are reguesting certain information from the client which we
+will use to perform a specific function, in this case, get an argument for our 
+Python script so we can send back a sequence of the desired length. Other
+applications for `POST` requests can range from logging in to uploading an
+image.  We will use [body-parser](https://www.npmjs.com/package/body-parser) to
+ease this process. bodyParser fills the `req.body` object with useful data. The
+`req` object already has a ton of information, but most of it is not required
+on a regular basis. Try out `console.log(req)` on a route to see what I mean.
+To get `urlencoded` bodies we can use bodyParser as so:
+
+~~~js
+var bodyParser = require('body-parser');
+
+app.use(bodyParser.urlencoded({extended: true}));
+
+app.post('/genDNA', function(req, res) {
+    res.send(req.body);
+});
+~~~ 
+
+Now open up Postman, set the url to `http://localhost:9001/genDNA`, choose
+`POST`, make sure Headers are empty, and add some random Key/Value pairs to
+`x-www-form-urlencoded`. Click send, you should receive a json of your key/value
+pairs. Now let's set up raw json data, add in:
+
+~~~js
+app.use(bodyParser.json());
+~~~
+
+Remove all of your key/value pairs, add the following Header/Value pair: 
+`Content-Type`/`application/json`, and add in some raw data in json format, for
+example:
+
+~~~json
+{
+    "n": 42
+}
+~~~
+
+Click send, and as before, you should get a json back with your sent data. 
+So, we are able to retrieve `n` from the client, let's get started on setting
+up the Python [child process](https://nodejs.org/api/child_process.html):
+
+~~~js
+var cp = require('child_process');
+
+app.post('/genDNA', function(req, res) {
+    var n = req.body.n;
+
+    var myPythonScript = cp.spawn('python3', ['genDNA.py', arg]);
+
+    myPythonScript.stdout.on('data', function(stdout) {
+        results.output = stdout.toString();
+    });
+
+    myPythonScript.stderr.on('data', function(stderr) {
+        results.errorlog = stderr;
+    });
+
+    myPythonScript.on('close', function(code) {
+        results.exitcode = code;
+
+        if (code === 0) {
+            // success, store sequence in DB
+            var seq = new DNASeq({
+                sequence: results.output,
+                len: arg 
+            });
+
+            seq.save(function(err, sequence){
+                if (err) console.error(err);
+               
+                console.log('saved sequence');
+            });
+        }
+
+        // Respond on process close
+        // otherwise, async problems!
+        res.send(results);
+    });   
+})
+~~~
+
+More updates to come..
+
+# AngularJS Tutorial 
 #### *From The Ground Up*
 
 First, make sure you are on the `pre-angular` branch:

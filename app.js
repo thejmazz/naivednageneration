@@ -1,4 +1,4 @@
-// ==== Requires ====
+// ==== Node Modules  ====
 
 // see https://github.com/strongloop/express
 var express = require('express');
@@ -34,7 +34,7 @@ mongoose.connect('mongodb://localhost/randomDNA');
 // "An Express app is essentially a series of middleware calls"
 // see http://expressjs.com/guide/using-middleware.html
 
-// CORS
+// CORS - cross-origin resource sharing 
 app.use(function(req, res, next) {
     res.header("Access-Control-Allow-Origin", "*");
     res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
@@ -106,7 +106,7 @@ app.post('/genDNA', function(req, res){
                 if (err) console.error(err);
                 
                 console.log('saved sequence');
-            })
+            });
         }
 
         // Respond on process close
@@ -121,31 +121,12 @@ app.get('/dnas', function(req, res) {
         if (err) console.error(err);
         
         res.send(dnas);
-    })
-})
-
-// Explicit middleware example
-/*
-var auth = function(req, res, next) {
-    if (req.body.token === 'mysecretoken') {
-        next();
-    } else {
-        res.end({
-            'success': false
-        });
-    }
-}
-
-app.post('/changePassword', auth, function(req, res) {
-    // change password stuff
-    // won't get here if auth does not call next()
-})
-*/
+    });
+});
 
 // ==== Listen ====
 app.listen(port);
 console.log('Express server listening on port ' + port.blue);
-
 
 // ==== Serve static content ====
 app.use(express.static('public'));

@@ -15,15 +15,15 @@ $ cd public; bower install
 $ node app.js 9001
 ~~~
 
-An example of Express, ChildProcess, Endpoints, Middleware (check out morgan
-logger, gets called on every endpoint), Mongoose and MongoDB. AngularJS app
-controlling the interactions between the frontend and the backend. (This 
-allows for a single page application (SPA) at the expense of search engine 
-optimization (SEO) )
+An example of Express, ChildProcess, Endpoints, Middleware, Mongoose and
+MongoDB. AngularJS app controlling the interactions between the frontend and the
+backend. (This allows for a single page application (SPA) at the expense of
+search engine optimization (SEO) - though there are some hacky solutions)
 
-# NodeJS/Express/Mongoose Tutorial
+# MEAN Stack Tutorial
+#### *from the ground up*<br>
 
-#### *in progress*
+## NodeJS/Express/Mongoose Tutorial
 
 Read the source! It is commented and filled with links to external resources.
 
@@ -266,33 +266,28 @@ var cp = require('child_process');
 
 app.post('/genDNA', function(req, res) {
     var n = req.body.n;
+    
+    var results = {
+        output: null,
+        errorlog: null,
+        exitcode: null
+    };
 
-    var myPythonScript = cp.spawn('python3', ['genDNA.py', arg]);
+    var genDNAScript = cp.spawn('python3', ['genDNA.py', n]);
 
-    myPythonScript.stdout.on('data', function(stdout) {
+    // get stdout
+    genDNAScript.stdout.on('data', function(stdout) {
         results.output = stdout.toString();
     });
 
-    myPythonScript.stderr.on('data', function(stderr) {
-        results.errorlog = stderr;
+    // get stderr
+    genDNAScript.stderr.on('data', function(stderr) {
+        results.errorlog = stderr.toString();
     });
 
-    myPythonScript.on('close', function(code) {
-        results.exitcode = code;
-
-        if (code === 0) {
-            // success, store sequence in DB
-            var seq = new DNASeq({
-                sequence: results.output,
-                len: arg 
-            });
-
-            seq.save(function(err, sequence){
-                if (err) console.error(err);
-               
-                console.log('saved sequence');
-            });
-        }
+    // script finished
+    genDNAScript.on('close', function(code) {
+        results.exitcode = code; 
 
         // Respond on process close
         // otherwise, async problems!
@@ -301,12 +296,128 @@ app.post('/genDNA', function(req, res) {
 })
 ~~~
 
-More updates to come..
+Send the same request as the last with Postman and you should get back
+a randomized DNA sequence! But what is going on here? First you need to 
+understand the three core *data streams* associated with a *process*. There is
+standard input (`stdin`), standout output (`stdout`) and standard error
+(`stderr`). Conforming to these three core idioms allows the stringing together
+of simple commands into complex processes. For example, I can send the contents
+of a file to `stdout` with `cat`, then pipe that into `grep` (in this way the
+`stdout` becomes the `stdin` for `grep`), search for all lines containg "todo"
+and then store that result in my clipboard using `xclip`:
 
-# AngularJS Tutorial 
-#### *From The Ground Up*
+~~~bash
+$ cat notes.txt | grep todo | xclip -i -selection clipboard
+~~~
+
+We won't be using `stdin` in this tutorial. ChildProcess is an [EventEmitter](https://nodejs.org/api/events.html#events_class_events_eventemitter).
+So essentially, `cp.spawn()` returns an object that we can 'catch' events
+with, in our case we watch for data to come from the `stdout` and `stderr` 
+streams. Then all that is left to do is store the output in our `results` object
+with the callback function. Finally we catch the `close` event, store the exit
+code (which every process must return, 0 means success, anything else is an
+error code), and finally send the entire `results` object back to the client.
+
+Now we have a working `POST /genDNA` endpoint which sends back a random DNA
+sequence of length specified by the client. Now let's finish up the API by
+storing all results in a database! We will use [MongoDB](https://www.mongodb.org)
+for our database, and interact with it from Node with [mongoose](mongoosejs.com).
+
+The first step with mongoose is to require the module and connect to our
+database (either local or online):
+
+~~~js
+var mongoose = require('mongoose');
+
+// use local MongoDB
+var url = 'mongodb://localhost/dbName';
+// or use mongolab      
+var url = 'mongodb://myuser:mypass@ds028017.mongolab.com:28017/mydb';
+mongoose.connect(url);
+~~~
+
+The next step is to define a [Schema](http://mongoosejs.com/docs/guide.html)
+that our `documents` within a `collection` within a `database` will follow:
+
+~~~js
+var DNASchema = mongoose.Schema({
+    'sequence': String,
+    'len': Number
+}); 
+~~~ 
+
+Essentially, we are enforcing the `types` of each of our `attributes` within an
+individual `document`. A `collection` is a list of `documents`. The `database` 
+holds a number of `collections`. Be sure to check the docs for Schema mentioned
+above to learn about all the other valid types, `Date`, `Buffer`, `ObjectID`,...
+are just a few. Once we have set up a schema, it's simple to define a mongoose
+[model](http://mongoosejs.com/docs/models.html):
+
+~~~js
+var DNASeq = mongoose.model('dna', DNASchema);
+~~~
+
+Typically, you would capitalize your models. It does not matter which case
+we use in the first argument to `model(name,schema)` since the collection name
+will be all lowercase anyways (it will also have an 's' added to so don't use
+the plural form for `name`). This is enough setup for us to save sequences to
+the database! Let's add the following just before our `res.send(results)` in
+`POST /genDNA`:
+
+~~~js
+if (code === 0) {
+    // success, store sequence in DB
+    var seq = new DNASeq({
+        sequence: results.output,
+        len: arg 
+    });
+
+    seq.save(function(err, sequence) {
+        if (err) console.error(err);
+        
+        console.log('saved sequence');
+    });
+}
+~~~
+
+First we make a new instance of our model following the schema, and then we
+simply save the model. Models have a bunch of predefined methods like
+`save(function(err, savedItem))` and you can even add your own!
+
+Another model method is `find()`. We can use `Model.find(conditions,
+[projection], [options], [callback])` and pass in no conditions to return
+all items in the collection for that model:
+
+~~~js
+app.get('/dnas', function(req, res) {
+    DNASeq.find(function(err, dnas) {
+        if (err) console.error(err);
+        
+        res.send(dnas);
+    });
+});
+~~~
+
+Awesome! We now have built a RESTful API using NodeJS/Express and
+MongoDB/mongoose! Verify that `POST /genDNA` and `GET /dnas` work as expected.
+Now it is time to build the AngularJS webapp that will use our API. First,
+one last thing: we need to enable CORS - cross-origin resource sharing.
+Basically, if we don't do this some browsers won't let use get resources from
+an API at another origin, even different port. But it's easy to fix, just apply
+the following global middleware that sets response headers to allow CORS:
+
+~~~js
+app.use(function(req, res, next) {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+    next();
+});
+~~~ 
+
+## AngularJS Tutorial 
 
 First, make sure you are on the `pre-angular` branch:
+(or keep using your own code if you have been following along until now)
 ~~~bash
 $ git clone https://github.com/thejmazz/naivednageneration.git
 $ cd naivednageneration
